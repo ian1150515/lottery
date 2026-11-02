@@ -56,11 +56,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20         # 建議使用穩定 LTS 版本 (Node.js 20.x)
-          cache: 'npm'              # 自動快取 npm 相依套件，大幅加速後續建置速度
 
-      # 步驟 3：安裝 npm 套件依賴
+      # 步驟 3：安裝 npm 套件依賴（優先使用 npm ci，若無 package-lock.json 則自動降級使用 npm install）
       - name: Install Dependencies
-        run: npm ci                 # 採用 npm ci (Clean Install)，依據 package-lock.json 嚴格一致安裝
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       # 步驟 4：執行 TypeScript 型別檢查
       - name: Type Check (Lint)
