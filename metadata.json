@@ -1,0 +1,6 @@
+{
+  "name": "智能抽獎系統",
+  "description": "企業活動專用之純前端智能抽獎系統，支援 Excel 名單與獎項匯入、一人一獎防重複機制、即時現場加碼、獎項捐出轉加碼留存、逐次抽出與一次全抽雙模式、缺席棄權重抽、Web Audio 音效與大螢幕投射常駐中獎名單。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,242 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Noto Sans TC', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #faf6f0;
+    color: #1e293b;
+    background-image: 
+      radial-gradient(circle at 50% -10%, rgba(225, 29, 72, 0.08) 0%, transparent 55%),
+      radial-gradient(circle at 10% 20%, rgba(245, 158, 11, 0.08) 0%, transparent 45%),
+      radial-gradient(circle at 90% 15%, rgba(244, 63, 94, 0.07) 0%, transparent 45%),
+      radial-gradient(circle at 50% 100%, rgba(245, 158, 11, 0.06) 0%, transparent 60%);
+    background-attachment: fixed;
+  }
+}
+
+.font-display {
+  font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+}
+
+.font-serif-luxury {
+  font-family: 'Cinzel', 'Noto Sans TC', serif;
+}
+
+/* Custom celebratory glow & lighting effects */
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.75; transform: scale(1); filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.4)); }
+  50% { opacity: 1; transform: scale(1.015); filter: drop-shadow(0 0 24px rgba(251, 191, 36, 0.65)); }
+}
+
+@keyframes goldShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Retro Carnival Marquee Bulbs Blinking Pattern */
+@keyframes marqueeBulbOdd {
+  0%, 100% {
+    background-color: #fef08a;
+    box-shadow: 0 0 8px 2px #facc15, 0 0 14px 3px rgba(250, 204, 21, 0.7);
+    opacity: 1;
+  }
+  50% {
+    background-color: #ca8a04;
+    box-shadow: 0 0 2px 0px rgba(202, 138, 4, 0.3);
+    opacity: 0.45;
+  }
+}
+
+@keyframes marqueeBulbEven {
+  0%, 100% {
+    background-color: #fda4af;
+    box-shadow: 0 0 4px 0px rgba(244, 63, 94, 0.4);
+    opacity: 0.45;
+  }
+  50% {
+    background-color: #6ee7b7;
+    box-shadow: 0 0 8px 2px #10b981, 0 0 14px 3px rgba(16, 185, 129, 0.7);
+    opacity: 1;
+  }
+}
+
+@keyframes floatGentle {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(1deg); }
+}
+
+.animate-float-gentle {
+  animation: floatGentle 3.5s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+.animate-gold-shimmer {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0) 0%, rgba(251, 191, 36, 0.3) 50%, rgba(251, 191, 36, 0) 100%);
+  background-size: 200% 100%;
+  animation: goldShimmer 2.4s infinite;
+}
+
+/* Marquee Bulbs Utility */
+.marquee-bulb-odd {
+  animation: marqueeBulbOdd 0.8s steps(1, end) infinite;
+}
+.marquee-bulb-even {
+  animation: marqueeBulbEven 0.8s steps(1, end) infinite;
+}
+
+/* Fast Marquee for Rolling state */
+.marquee-fast .marquee-bulb-odd {
+  animation: marqueeBulbOdd 0.22s steps(1, end) infinite;
+}
+.marquee-fast .marquee-bulb-even {
+  animation: marqueeBulbEven 0.22s steps(1, end) infinite;
+}
+
+/* Modern Festive Card & Surface Styles (Festive & Professional) */
+.festive-panel {
+  background: #ffffff;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 10px 30px -5px rgba(225, 29, 72, 0.06), 0 4px 16px -2px rgba(0, 0, 0, 0.04);
+}
+
+.festive-panel-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.festive-panel-hover:hover {
+  border-color: rgba(245, 158, 11, 0.65);
+  box-shadow: 0 14px 36px -4px rgba(225, 29, 72, 0.1), 0 0 20px -2px rgba(245, 158, 11, 0.25);
+  transform: translateY(-2px);
+}
+
+/* Highlight: Champagne Gold Button */
+.festive-gold-btn {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef08a 25%, #facc15 65%, #f59e0b 100%);
+  color: #78350f;
+  font-weight: 800;
+  box-shadow: 
+    0 3px 0 0 #b45309,
+    0 6px 18px -2px rgba(245, 158, 11, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(251, 191, 36, 0.8);
+  transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: translateY(0);
+}
+.festive-gold-btn:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #fef08a 30%, #fde047 70%, #f59e0b 100%);
+  box-shadow: 
+    0 4px 0 0 #b45309,
+    0 10px 24px 0 rgba(245, 158, 11, 0.45),
+    inset 0 1px 2px rgba(255, 255, 255, 1);
+  transform: translateY(-1.5px);
+}
+.festive-gold-btn:active {
+  transform: translateY(2px);
+  box-shadow: 
+    0 1px 0 0 #b45309,
+    0 2px 8px 0 rgba(245, 158, 11, 0.3);
+}
+
+/* Primary: Festive Crimson / Vermilion Button */
+.festive-red-btn, .festive-primary-btn {
+  background: linear-gradient(180deg, #f43f5e 0%, #e11d48 40%, #be123c 85%, #9f1239 100%);
+  color: #ffffff;
+  font-weight: 800;
+  border: 1px solid rgba(253, 164, 175, 0.6);
+  box-shadow: 
+    0 3px 0 0 #881337,
+    0 6px 18px -2px rgba(225, 29, 72, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.festive-red-btn:hover, .festive-primary-btn:hover {
+  background: linear-gradient(180deg, #fb7185 0%, #f43f5e 40%, #e11d48 85%, #be123c 100%);
+  box-shadow: 
+    0 4px 0 0 #881337,
+    0 10px 22px 0 rgba(225, 29, 72, 0.5),
+    inset 0 1px 2px rgba(255, 255, 255, 0.6);
+  transform: translateY(-1.5px);
+}
+.festive-red-btn:active, .festive-primary-btn:active {
+  transform: translateY(2px);
+  box-shadow: 
+    0 1px 0 0 #881337,
+    0 2px 8px 0 rgba(136, 19, 55, 0.4);
+}
+
+/* Secondary: Warm White / Pale Gold Button */
+.festive-secondary-btn {
+  background: #ffffff;
+  color: #475569;
+  font-weight: 700;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  box-shadow: 0 2px 6px -1px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease-out;
+}
+.festive-secondary-btn:hover {
+  background: #fffdfa;
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.7);
+  box-shadow: 0 4px 12px -2px rgba(245, 158, 11, 0.2);
+  transform: translateY(-1px);
+}
+.festive-secondary-btn:active {
+  transform: translateY(1px);
+}
+
+/* Tactile Emerald Lucky Button */
+.festive-emerald-btn {
+  background: linear-gradient(180deg, #10b981 0%, #059669 60%, #047857 100%);
+  color: #ffffff;
+  font-weight: 800;
+  border: 1px solid rgba(167, 243, 208, 0.6);
+  box-shadow: 
+    0 3px 0 0 #064e3b,
+    0 6px 16px -2px rgba(16, 185, 129, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.festive-emerald-btn:hover {
+  background: linear-gradient(180deg, #34d399 0%, #10b981 60%, #059669 100%);
+  box-shadow: 
+    0 4px 0 0 #064e3b,
+    0 8px 20px 0 rgba(16, 185, 129, 0.45);
+  transform: translateY(-1.5px);
+}
+.festive-emerald-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 0 #064e3b;
+}
+
+/* Tactile Pink / Coral Button */
+.festive-pink-btn {
+  background: linear-gradient(180deg, #fb7185 0%, #f43f5e 50%, #e11d48 100%);
+  color: #ffffff;
+  font-weight: 800;
+  border: 1px solid rgba(254, 205, 211, 0.6);
+  box-shadow: 
+    0 3px 0 0 #9f1239,
+    0 6px 16px -2px rgba(244, 63, 94, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.festive-pink-btn:hover {
+  background: linear-gradient(180deg, #fda4af 0%, #fb7185 50%, #f43f5e 100%);
+  box-shadow: 0 4px 0 0 #9f1239, 0 8px 20px 0 rgba(244, 63, 94, 0.45);
+  transform: translateY(-1.5px);
+}
+.festive-pink-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 0 #9f1239;
+}
+
+/* Hide scrollbar for clean TV / projector display */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
