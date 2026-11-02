@@ -1,0 +1,101 @@
+# ==============================================================================
+# GitHub Actions 自動化建置與部署工作流程 (CI/CD Workflow)
+# ==============================================================================
+# 工作流程名稱：顯示於 GitHub 儲存庫的「Actions」分頁
+name: Deploy to GitHub Pages
+
+# ------------------------------------------------------------------------------
+# 觸發條件 (Triggers)
+# ------------------------------------------------------------------------------
+on:
+  # 當指定分支有新的 push 推送時自動觸發
+  push:
+    branches:
+      - main     # 監聽主要分支 main（若您的預設分支為 master，可改為 master）
+      - master   # 同時兼容 master 分支
+
+  # 支援手動觸發（可直接在 GitHub 網頁介面上點擊「Run workflow」執行部署）
+  workflow_dispatch:
+
+# ------------------------------------------------------------------------------
+# 權限設定 (Permissions)
+# ------------------------------------------------------------------------------
+# 部署至 GitHub Pages 所需的最小權限原則
+permissions:
+  contents: read   # 允許讀取儲存庫程式碼
+  pages: write      # 允許寫入/發布內容至 GitHub Pages
+  id-token: write   # 允許 OIDC 認證以建立安全連線進行發布
+
+# ------------------------------------------------------------------------------
+# 並發存取控制 (Concurrency)
+# ------------------------------------------------------------------------------
+# 防止同時推播多個 commit 導致部署衝突，自動取消前一次未完成的舊排程
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
+# ------------------------------------------------------------------------------
+# 任務清單 (Jobs)
+# ------------------------------------------------------------------------------
+jobs:
+  # ----------------------------------------------------------------------------
+  # Job 1：編譯建置 (Build)
+  # ----------------------------------------------------------------------------
+  build:
+    name: Build Frontend Assets
+    # 運行在最新版 Ubuntu Linux 虛擬機環境
+    runs-on: ubuntu-latest
+
+    steps:
+      # 步驟 1：檢出儲存庫原始碼 (Checkout repository)
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 步驟 2：設定 Node.js 執行環境
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20         # 建議使用穩定 LTS 版本 (Node.js 20.x)
+          cache: 'npm'              # 自動快取 npm 相依套件，大幅加速後續建置速度
+
+      # 步驟 3：安裝 npm 套件依賴
+      - name: Install Dependencies
+        run: npm ci                 # 採用 npm ci (Clean Install)，依據 package-lock.json 嚴格一致安裝
+
+      # 步驟 4：執行 TypeScript 型別檢查
+      - name: Type Check (Lint)
+        run: npm run lint           # 執行 tsc --noEmit 驗證程式碼語法與型別正確性
+
+      # 步驟 5：編譯前端專案生產版本
+      - name: Build Project
+        run: npm run build          # 透過 Vite 編譯打包，輸出靜態檔案至 dist 目錄
+
+      # 步驟 6：設定 GitHub Pages 環境設定檔
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # 步驟 7：將打包後的 dist 目錄壓縮並上傳為 Pages Artifact
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'            # 指定要部署發布的靜態資源目錄 (Vite 預設輸出路徑)
+
+  # ----------------------------------------------------------------------------
+  # Job 2：發布部署 (Deploy)
+  # ----------------------------------------------------------------------------
+  deploy:
+    name: Deploy to GitHub Pages
+    # 必須等待前面的 build 任務成功完成後才執行部署
+    needs: build
+    runs-on: ubuntu-latest
+
+    # 定義部署環境名稱及產生對應的網址
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # 步驟 1：執行部署發布到 GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

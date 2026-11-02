@@ -5,6 +5,8 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    // 支援相對路徑資源載入，確保部屬至 GitHub Pages（無論是自訂網域或專案子路徑 /repo-name/）皆能正確讀取資源
+    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
