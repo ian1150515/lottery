@@ -43,8 +43,8 @@ jobs:
   # ----------------------------------------------------------------------------
   build:
     name: Build Frontend Assets
-    # 運行在最新版 Ubuntu Linux 虛擬機環境
-    runs-on: ubuntu-latest
+    # 明確指定穩定長期支援的 Ubuntu 24.04 虛擬機映像檔，避免 ubuntu-latest 標籤浮動切換警告
+    runs-on: ubuntu-24.04
 
     steps:
       # 步驟 1：檢出儲存庫原始碼 (Checkout repository)
@@ -55,7 +55,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20         # 建議使用穩定 LTS 版本 (Node.js 20.x)
+          node-version: 22         # 升級至活躍維護的 Node.js 22 LTS，消除 Node 20 棄用提醒
 
       # 步驟 3：安裝 npm 套件依賴（優先使用 npm ci，若無 package-lock.json 則自動降級使用 npm install）
       - name: Install Dependencies
@@ -91,7 +91,7 @@ jobs:
     name: Deploy to GitHub Pages
     # 必須等待前面的 build 任務成功完成後才執行部署
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     # 定義部署環境名稱及產生對應的網址
     environment:
