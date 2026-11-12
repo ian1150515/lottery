@@ -53,11 +53,11 @@ jobs:
         with:
           node-version: 22
 
-      # 步驟 3：安裝專案相依套件與打包工具（避免跨平台 package-lock.json 缺少 Rollup Windows 原生二進位套件）
+      # 步驟 3：安裝專案相依套件與 Windows 原生二進位核心模組（Rollup 與 LightningCSS/Tailwind v4）
       - name: Install Project Dependencies
         run: |
           npm install --force
-          npm install --save-dev @rollup/rollup-win32-x64-msvc electron@^33.2.0 electron-builder@^25.1.8
+          npm install --save-dev @rollup/rollup-win32-x64-msvc lightningcss-win32-x64-msvc electron@^33.2.0 electron-builder@^25.1.8
 
       # 步驟 5：執行 TypeScript 型別檢查
       - name: Run Type Check
