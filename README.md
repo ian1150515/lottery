@@ -80,12 +80,31 @@ npm run build
 npm run lint
 ```
 
+---
+
+## 💻 自動打包 Windows .exe 執行檔 (GitHub Actions)
+
+本專案配置了專屬的 GitHub Actions 自動打包工作流程（`.github/workflows/build-exe.yml`）：
+
+1. **自動觸發**：
+   - 每當推送程式碼至 `main` 或 `master` 分支時，GitHub Actions 會自動在 Windows 虛擬機環境中打包。
+   - 支援打 Tag 發布（例如 `git tag v1.0.0 && git push --tags`），系統會自動產出 GitHub Release。
+2. **下載方式**：
+   - 前往 GitHub 儲存庫的 **「Actions」** 分頁。
+   - 點擊最新的 **「Build Windows Executable (.exe)」** 執行紀錄。
+   - 在頁面下方的 **Artifacts（產物）** 區域，即可直接下載包含 **安裝版（NSIS Setup .exe）** 與 **免安裝免設定的綠色可執行版（Portable .exe）**！
+
+---
+
 ## 📂 專案檔案結構 (Directory Structure)
 
 ```
 lottery/
 ├── .github/workflows/
-│   └── deploy.yml               # GitHub Actions 自動化建置與部署設定檔
+│   ├── deploy.yml               # GitHub Pages 網頁自動化部署
+│   └── build-exe.yml            # Windows .exe 自動打包建置流程
+├── electron/
+│   └── main.cjs                 # Electron 桌面端主程序設定
 ├── public/                      # 靜態資源（吉祥物圖片、字型、示範檔案）
 ├── src/
 │   ├── components/              # React 功能模組與業務視圖

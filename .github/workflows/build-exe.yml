@@ -1,0 +1,99 @@
+# ==============================================================================
+# GitHub Actions 自動打包 Windows .exe 執行檔工作流程 (Build & Release Windows Executable)
+# ==============================================================================
+# 當程式碼推送到 GitHub 時，自動在 Windows 虛擬機編譯專案並使用 Electron 打包成 .exe
+name: Build Windows Executable (.exe)
+
+# ------------------------------------------------------------------------------
+# 觸發條件 (Triggers)
+# ------------------------------------------------------------------------------
+on:
+  # 當推送至 main 或 master 分支時自動執行打包
+  push:
+    branches:
+      - main
+      - master
+    # 支援發布新版本標籤（例如 git tag v1.0.0）時觸發
+    tags:
+      - 'v*'
+
+  # 支援在 GitHub 網頁手動點擊「Run workflow」按鈕執行
+  workflow_dispatch:
+
+# ------------------------------------------------------------------------------
+# 權限設定 (Permissions)
+# ------------------------------------------------------------------------------
+permissions:
+  contents: write  # 允許建立 GitHub Release 並上傳 .exe 安裝檔
+
+# ------------------------------------------------------------------------------
+# 並發控制 (避免同時推送重複打包)
+# ------------------------------------------------------------------------------
+concurrency:
+  group: 'build-exe-${{ github.ref }}'
+  cancel-in-progress: true
+
+# ------------------------------------------------------------------------------
+# 任務清單 (Jobs)
+# ------------------------------------------------------------------------------
+jobs:
+  build-windows:
+    name: Build Windows .exe Installer & Portable
+    # 採用原生 Windows 虛擬機環境，確保打包 Windows PE 二進位相容性與無錯誤編譯
+    runs-on: windows-latest
+
+    steps:
+      # 步驟 1：檢出儲存庫原始碼
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 步驟 2：設定 Node.js 22 LTS 執行環境
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # 步驟 3：安裝專案相依套件（若無 package-lock.json 自動使用 npm install）
+      - name: Install Project Dependencies
+        run: |
+          if (Test-Path package-lock.json) {
+            npm ci
+          } else {
+            npm install
+          }
+
+      # 步驟 4：安裝 Electron 與 electron-builder 打包工具（只在 CI 建置環境動態安裝，不膨脹開發庫）
+      - name: Install Electron & Builder
+        run: npm install --save-dev electron@^33.2.0 electron-builder@^25.1.8
+
+      # 步驟 5：執行 TypeScript 型別檢查
+      - name: Run Type Check
+        run: npm run lint
+
+      # 步驟 6：打包前端靜態資源 (Vite Build)
+      - name: Build Web Frontend (Vite)
+        run: npm run build
+
+      # 步驟 7：使用 electron-builder 打包產出 Windows .exe (包含 NSIS 安裝檔與免安裝綠色版)
+      - name: Build Windows .exe
+        run: npx electron-builder --win --x64
+        env:
+          # 停用代碼簽名提示（未購買微軟簽名憑證時跳過代碼簽名警告）
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      # 步驟 8：將打包好的 .exe 檔案上傳至 GitHub Actions Artifacts（所有推送均可直接於 Actions 頁面下載）
+      - name: Upload .exe to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: 尾牙智能抽獎系統-Windows-exe
+          path: |
+            dist-electron/*.exe
+          retention-days: 30
+
+      # 步驟 9：若為手動發布或打 Tag 版本（例如 v1.0.0），自動建立 GitHub Release 並附帶 .exe 下載連結
+      - name: Create GitHub Release (Optional for Tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist-electron/*.exe
+          generate_release_notes: true
