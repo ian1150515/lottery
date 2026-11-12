@@ -57,14 +57,9 @@ jobs:
         with:
           node-version: 22         # 升級至活躍維護的 Node.js 22 LTS，消除 Node 20 棄用提醒
 
-      # 步驟 3：安裝 npm 套件依賴（優先使用 npm ci，若無 package-lock.json 則自動降級使用 npm install）
+      # 步驟 3：安裝 npm 套件依賴
       - name: Install Dependencies
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+        run: npm install
 
       # 步驟 4：執行 TypeScript 型別檢查
       - name: Type Check (Lint)
