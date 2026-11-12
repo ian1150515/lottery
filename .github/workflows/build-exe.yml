@@ -53,18 +53,11 @@ jobs:
         with:
           node-version: 22
 
-      # 步驟 3：安裝專案相依套件（若無 package-lock.json 自動使用 npm install）
+      # 步驟 3：安裝專案相依套件與打包工具（避免跨平台 package-lock.json 缺少 Rollup Windows 原生二進位套件）
       - name: Install Project Dependencies
         run: |
-          if (Test-Path package-lock.json) {
-            npm ci
-          } else {
-            npm install
-          }
-
-      # 步驟 4：安裝 Electron 與 electron-builder 打包工具（只在 CI 建置環境動態安裝，不膨脹開發庫）
-      - name: Install Electron & Builder
-        run: npm install --save-dev electron@^33.2.0 electron-builder@^25.1.8
+          npm install --force
+          npm install --save-dev @rollup/rollup-win32-x64-msvc electron@^33.2.0 electron-builder@^25.1.8
 
       # 步驟 5：執行 TypeScript 型別檢查
       - name: Run Type Check
