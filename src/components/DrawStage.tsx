@@ -57,6 +57,10 @@ interface DrawStageProps {
   isNextRoundModalOpen?: boolean;
   onOpenNextRoundModal?: (readonly?: boolean) => void;
   onConfirmNextRound?: () => void;
+
+  // Background isolation when projector mode or overlay modals are active
+  isProjectorMode?: boolean;
+  isShortcutsDisabled?: boolean;
 }
 
 export const DrawStage: React.FC<DrawStageProps> = ({
@@ -88,6 +92,8 @@ export const DrawStage: React.FC<DrawStageProps> = ({
   isNextRoundModalOpen = false,
   onOpenNextRoundModal,
   onConfirmNextRound,
+  isProjectorMode = false,
+  isShortcutsDisabled = false,
 }) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [displayCandidate, setDisplayCandidate] = useState<Employee | null>(null);
@@ -98,6 +104,7 @@ export const DrawStage: React.FC<DrawStageProps> = ({
   const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
 
   const rollingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isDrawingRef = useRef<boolean>(false);
 
   // Remaining quota for the selected prize
   const prizeWinners = winningRecords.filter(r => r.prizeId === currentPrize?.id);
@@ -110,10 +117,24 @@ export const DrawStage: React.FC<DrawStageProps> = ({
   // Cleanup rolling on unmount
   useEffect(() => {
     return () => {
+      isDrawingRef.current = false;
       if (rollingTimerRef.current) clearTimeout(rollingTimerRef.current);
       soundEffects.stopRollingSound();
     };
   }, []);
+
+  // Cancel background stage roll if projector mode is entered
+  useEffect(() => {
+    if (isProjectorMode && (isDrawingRef.current || isDrawing)) {
+      isDrawingRef.current = false;
+      setIsDrawing(false);
+      if (rollingTimerRef.current) {
+        clearTimeout(rollingTimerRef.current);
+        rollingTimerRef.current = null;
+      }
+      soundEffects.stopRollingSound();
+    }
+  }, [isProjectorMode, isDrawing]);
 
   // Reset candidate preview when prize changes (do not display any employee name initially)
   useEffect(() => {
@@ -142,12 +163,18 @@ export const DrawStage: React.FC<DrawStageProps> = ({
   // Handle keyboard shortcut (Space to start automated roll)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isShortcutsDisabled || showWinnerModal || isDonateModalOpen || isNextRoundModalOpen) {
+        return;
+      }
       if (e.code === 'Space' && !e.repeat) {
         const activeElement = document.activeElement;
-        const isInputField = activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement;
+        const isInputField =
+          activeElement instanceof HTMLInputElement ||
+          activeElement instanceof HTMLTextAreaElement ||
+          activeElement instanceof HTMLSelectElement;
         if (!isInputField) {
           e.preventDefault();
-          if (!isDrawing && !isCompleted && candidates.length > 0 && currentPrize) {
+          if (!isDrawingRef.current && !isDrawing && !isCompleted && candidates.length > 0 && currentPrize) {
             handleStartDraw();
           }
         }
@@ -155,15 +182,17 @@ export const DrawStage: React.FC<DrawStageProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDrawing, isCompleted, candidates, currentPrize, batchCount, remainingQuota]);
+  }, [isDrawing, isCompleted, candidates, currentPrize, batchCount, remainingQuota, isShortcutsDisabled, showWinnerModal, isDonateModalOpen, isNextRoundModalOpen]);
 
   // Execute the Automated Timed Draw Roll
   const handleStartDraw = () => {
+    if (isShortcutsDisabled || isDrawingRef.current || isDrawing) return;
     if (!currentPrize || candidates.length === 0 || remainingQuota <= 0) return;
 
     const actualCount = Math.min(batchCount, remainingQuota, candidates.length);
     if (actualCount <= 0) return;
 
+    isDrawingRef.current = true;
     setIsDrawing(true);
     soundEffects.startRollingSound();
 
@@ -171,6 +200,7 @@ export const DrawStage: React.FC<DrawStageProps> = ({
     const durationMs = Math.max(1200, (drawDurationSeconds || 3.2) * 1000);
 
     const runRoll = () => {
+      if (!isDrawingRef.current) return;
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / durationMs, 1);
 
@@ -185,6 +215,7 @@ export const DrawStage: React.FC<DrawStageProps> = ({
       } else {
         // Stop roll sound
         soundEffects.stopRollingSound();
+        isDrawingRef.current = false;
         setIsDrawing(false);
 
         // Pick winners objectively using Fisher-Yates algorithm & Web Crypto
@@ -754,7 +785,8 @@ export const DrawStage: React.FC<DrawStageProps> = ({
           {!isDrawing ? (
             <button
               id="btn-start-draw"
-              disabled={isCompleted || candidates.length === 0 || !currentPrize}
+              type="button"
+              disabled={isDrawing || isCompleted || candidates.length === 0 || !currentPrize}
               onClick={handleStartDraw}
               className="festive-primary-btn flex items-center gap-3 px-10 py-4 sm:px-14 sm:py-5 rounded-2xl font-black text-lg sm:text-xl transition-all transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-xl shadow-rose-600/30 cursor-pointer ring-4 ring-amber-300/80"
               title="一鍵啟動自動滾動抽獎（系統客觀定格，杜絕人為作弊）"

@@ -54,6 +54,7 @@ interface ProjectorViewProps {
   currentDrawRound?: number;
   acknowledgedRound?: number;
   isNextRoundModalOpen?: boolean;
+  isRedrawModalOpen?: boolean;
   onOpenNextRoundModal?: (readonly?: boolean) => void;
   onConfirmNextRound?: () => void;
 }
@@ -80,6 +81,7 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
   currentDrawRound = 1,
   acknowledgedRound = 1,
   isNextRoundModalOpen = false,
+  isRedrawModalOpen = false,
   onOpenNextRoundModal,
   onConfirmNextRound,
 }) => {
@@ -102,6 +104,7 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
 
   const rollingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const sequentialNextTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isDrawingRef = useRef(false);
   const isSequentialRunningRef = useRef(false);
   const sequentialRemainingCandidatesRef = useRef<Employee[]>([]);
   const sessionWinnersRef = useRef<WinningRecord[]>([]);
@@ -171,6 +174,7 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
   // Cleanup rolling and sequential timers on unmount
   useEffect(() => {
     return () => {
+      isDrawingRef.current = false;
       isSequentialRunningRef.current = false;
       if (rollingTimerRef.current) clearTimeout(rollingTimerRef.current);
       if (sequentialNextTimerRef.current) clearTimeout(sequentialNextTimerRef.current);
@@ -213,7 +217,14 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
   // Keyboard shortcut listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isNextRoundModalOpen || isDonateModalOpen) return;
+      if (isNextRoundModalOpen || isDonateModalOpen || isRedrawModalOpen) return;
+
+      const activeElement = document.activeElement;
+      const isInputField =
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        activeElement instanceof HTMLSelectElement;
+      if (isInputField) return;
 
       // Escape key: close dropdown if open, else exit projector
       if (e.code === 'Escape') {
@@ -232,17 +243,18 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
       // Space key: trigger or stop draw
       if (e.code === 'Space') {
         e.preventDefault();
+        if (e.repeat) return;
         setIsPrizeMenuOpen(false);
         if (isSequentialRunningRef.current) {
           handleStopSequential();
-        } else if (!isDrawing && !isCompleted && candidates.length > 0 && currentPrize) {
+        } else if (!isDrawingRef.current && !isDrawing && !isCompleted && candidates.length > 0 && currentPrize) {
           handleStart();
         }
         return;
       }
 
       // Prize navigation shortcuts (when not drawing)
-      if (!isDrawing && !isSequentialRunningRef.current) {
+      if (!isDrawingRef.current && !isDrawing && !isSequentialRunningRef.current) {
         if (e.code === 'ArrowLeft' || e.code === 'PageUp') {
           e.preventDefault();
           handlePrevPrize();
@@ -258,9 +270,10 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDrawing, isCompleted, candidates, currentPrize, drawMode, drawDurationSeconds, remainingQuota, isNextRoundModalOpen, isDonateModalOpen, isPrizeMenuOpen, currentIndex, prizes]);
+  }, [isDrawing, isCompleted, candidates, currentPrize, drawMode, drawDurationSeconds, remainingQuota, isNextRoundModalOpen, isDonateModalOpen, isRedrawModalOpen, isPrizeMenuOpen, currentIndex, prizes]);
 
   const handleStopSequential = () => {
+    isDrawingRef.current = false;
     isSequentialRunningRef.current = false;
     setIsSequentialRunning(false);
     setIsDrawing(false);
@@ -271,11 +284,12 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
 
   // 1. 逐次抽出 (Sequential Drawing)
   const startSequentialDraw = () => {
-    if (isDrawing || !currentPrize || candidates.length === 0 || remainingQuota <= 0) return;
+    if (isDrawingRef.current || isDrawing || isSequentialRunningRef.current || !currentPrize || candidates.length === 0 || remainingQuota <= 0) return;
 
     const totalToDrawThisRun = Math.min(remainingQuota, candidates.length);
     if (totalToDrawThisRun <= 0) return;
 
+    isDrawingRef.current = true;
     setIsDrawing(true);
     setIsSequentialRunning(true);
     isSequentialRunningRef.current = true;
@@ -287,8 +301,9 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
     let drawnCountInRun = 0;
 
     const runNextStep = () => {
-      if (!isSequentialRunningRef.current) return;
+      if (!isSequentialRunningRef.current || !isDrawingRef.current) return;
       if (drawnCountInRun >= totalToDrawThisRun || sequentialRemainingCandidatesRef.current.length === 0) {
+        isDrawingRef.current = false;
         isSequentialRunningRef.current = false;
         setIsSequentialRunning(false);
         setIsDrawing(false);
@@ -359,6 +374,7 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
           }, 80);
 
           if (drawnCountInRun >= totalToDrawThisRun || sequentialRemainingCandidatesRef.current.length === 0) {
+            isDrawingRef.current = false;
             isSequentialRunningRef.current = false;
             setIsSequentialRunning(false);
             setIsDrawing(false);
@@ -382,7 +398,7 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
 
   // 2. 一次全抽 (All-in Drawing)
   const startAllInDraw = () => {
-    if (isDrawing || !currentPrize || candidates.length === 0 || remainingQuota <= 0) return;
+    if (isDrawingRef.current || isDrawing || isSequentialRunningRef.current || !currentPrize || candidates.length === 0 || remainingQuota <= 0) return;
 
     const countToDraw = Math.min(remainingQuota, candidates.length);
     if (countToDraw <= 0) return;
@@ -390,6 +406,7 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
     // Pick winners objectively using Fisher-Yates shuffle & Web Crypto
     const selectedEmployees = drawRandomWinners<Employee>(candidates, countToDraw);
 
+    isDrawingRef.current = true;
     setIsDrawing(true);
     setLatestWinners([]);
     soundEffects.startRollingSound();
@@ -398,6 +415,7 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
     const startTime = Date.now();
 
     const runRoll = () => {
+      if (!isDrawingRef.current) return;
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / totalDuration, 1);
 
@@ -429,6 +447,7 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
         }));
 
         setDisplayCandidate(selectedEmployees[0]);
+        isDrawingRef.current = false;
         setIsDrawing(false);
         sessionWinnersRef.current = records;
         setLatestWinners(records);

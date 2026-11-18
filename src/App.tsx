@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Employee, Prize, WinningRecord, AbsentRecord, DonationRecord, CelebrationEffectType, AppSettings, RepeatWinningMode } from './types';
 import { MOCK_EMPLOYEES, MOCK_PRIZES } from './utils/mockData';
 import { exportWinnersToExcel, exportWinnersToCsv } from './utils/excelHelper';
@@ -50,6 +50,10 @@ export default function App() {
   const [employees, setEmployees] = useState<Employee[]>(MOCK_EMPLOYEES);
   const [prizes, setPrizes] = useState<Prize[]>(MOCK_PRIZES);
   const [winningRecords, setWinningRecords] = useState<WinningRecord[]>([]);
+  const winningRecordsRef = useRef<WinningRecord[]>(winningRecords);
+  useEffect(() => {
+    winningRecordsRef.current = winningRecords;
+  }, [winningRecords]);
   const [absentRecords, setAbsentRecords] = useState<AbsentRecord[]>([]);
   const [donationRecords, setDonationRecords] = useState<DonationRecord[]>([]);
 
@@ -605,74 +609,117 @@ export default function App() {
     }
   };
 
-  // Handler: Add new winners from standard or batch draw
+  // Handler: Add new winners from standard or batch draw (含嚴格名額上限防呆保護)
   const handleAddWinners = (newWinners: WinningRecord[]) => {
+    if (!newWinners || newWinners.length === 0) return;
+
+    const currentWinners = winningRecordsRef.current;
+    const existingIds = new Set(currentWinners.map(r => r.id));
+    const countByPrizeId = new Map<string, number>();
+    for (const r of currentWinners) {
+      countByPrizeId.set(r.prizeId, (countByPrizeId.get(r.prizeId) || 0) + 1);
+    }
+
+    const acceptedNewWinners: WinningRecord[] = [];
+    for (const w of newWinners) {
+      if (existingIds.has(w.id)) continue;
+      const targetPrize = prizes.find(p => p.id === w.prizeId);
+      if (targetPrize) {
+        const currentCount = countByPrizeId.get(w.prizeId) || 0;
+        if (currentCount >= targetPrize.quota) {
+          continue; // 嚴格保護：該獎項已達配額上限，禁止超抽寫入
+        }
+        countByPrizeId.set(w.prizeId, currentCount + 1);
+      }
+      existingIds.add(w.id);
+      acceptedNewWinners.push(w);
+    }
+
+    if (acceptedNewWinners.length === 0) return;
+
+    const updatedWinners = [...acceptedNewWinners, ...currentWinners];
+    winningRecordsRef.current = updatedWinners;
+
     setWinningRecords(prevWinners => {
-      // Ensure no duplicate records by ID
-      const existingIds = new Set(prevWinners.map(r => r.id));
-      const freshNewWinners = newWinners.filter(w => !existingIds.has(w.id));
-      const updatedWinners = [...freshNewWinners, ...prevWinners];
-
-      const snapshot: StorageSnapshotData = {
-        version: '1.0.0',
-        savedAt: Date.now(),
-        settings: {
-          activityTitle,
-          drawDurationSeconds,
-          celebrationEffect,
-        },
-        employees,
-        prizes,
-        winningRecords: updatedWinners,
-        absentRecords,
-        donationRecords,
-        currentPool,
-        selectedPrizeId,
-        allowRepeatWinning,
-      };
-
-      saveStorageSnapshot(snapshot);
-      setHasSnapshotSaved(true);
-
-      // 檢查此獎項是否已抽滿（每抽完一個獎項就自動存檔至本機資料夾，防止當機遺失）
-      if (currentPrize) {
-        const allPrizeWinners = updatedWinners.filter(r => r.prizeId === currentPrize.id);
-        const isQuotaReached = allPrizeWinners.length >= currentPrize.quota;
-
-        if (isQuotaReached) {
-          performAutoFolderBackup(snapshot, `${currentPrize.name}_全數抽完`).then(res => {
-            if (res.success) {
-              setToastMessage({
-                id: Date.now(),
-                text: `💾 【${currentPrize.name}】已全數開出！已自動存檔至本機備份 (${res.fileName || '即時備份'})`,
-              });
-            }
-          });
-        }
+      const prevIds = new Set(prevWinners.map(r => r.id));
+      const prevCounts = new Map<string, number>();
+      for (const r of prevWinners) {
+        prevCounts.set(r.prizeId, (prevCounts.get(r.prizeId) || 0) + 1);
       }
 
-      // Check if current prize reached quota, auto switch to next incomplete prize (only in non-projector view)
-      if (currentPrize && !isProjectorMode) {
-        const allPrizeWinners = updatedWinners.filter(r => r.prizeId === currentPrize.id);
-        if (allPrizeWinners.length >= currentPrize.quota) {
-          const poolPrizes = currentPool === 'main' ? mainPrizes : bonusPrizes;
-          const nextIncomplete = poolPrizes.find(p => {
-            const count = updatedWinners.filter(r => r.prizeId === p.id).length;
-            return count < p.quota && p.id !== currentPrize.id;
-          });
-
-          if (nextIncomplete) {
-            setTimeout(() => {
-              setSelectedPrizeId(nextIncomplete.id);
-            }, 1500);
-          } else if (currentPool === 'main' && isMainPoolCompleted) {
-            soundEffects.playFanfare();
-          }
+      const safeAdditions: WinningRecord[] = [];
+      for (const w of acceptedNewWinners) {
+        if (prevIds.has(w.id)) continue;
+        const targetPrize = prizes.find(p => p.id === w.prizeId);
+        if (targetPrize) {
+          const count = prevCounts.get(w.prizeId) || 0;
+          if (count >= targetPrize.quota) continue;
+          prevCounts.set(w.prizeId, count + 1);
         }
+        prevIds.add(w.id);
+        safeAdditions.push(w);
       }
 
-      return updatedWinners;
+      return safeAdditions.length > 0 ? [...safeAdditions, ...prevWinners] : prevWinners;
     });
+
+    const snapshot: StorageSnapshotData = {
+      version: '1.0.0',
+      savedAt: Date.now(),
+      settings: {
+        activityTitle,
+        drawDurationSeconds,
+        celebrationEffect,
+      },
+      employees,
+      prizes,
+      winningRecords: updatedWinners,
+      absentRecords,
+      donationRecords,
+      currentPool,
+      selectedPrizeId,
+      allowRepeatWinning,
+    };
+
+    saveStorageSnapshot(snapshot);
+    setHasSnapshotSaved(true);
+
+    // 檢查此獎項是否已抽滿（每抽完一個獎項就自動存檔至本機資料夾，防止當機遺失）
+    if (currentPrize) {
+      const allPrizeWinners = updatedWinners.filter(r => r.prizeId === currentPrize.id);
+      const isQuotaReached = allPrizeWinners.length >= currentPrize.quota;
+
+      if (isQuotaReached) {
+        performAutoFolderBackup(snapshot, `${currentPrize.name}_全數抽完`).then(res => {
+          if (res.success) {
+            setToastMessage({
+              id: Date.now(),
+              text: `💾 【${currentPrize.name}】已全數開出！已自動存檔至本機備份 (${res.fileName || '即時備份'})`,
+            });
+          }
+        });
+      }
+    }
+
+    // Check if current prize reached quota, auto switch to next incomplete prize (only in non-projector view)
+    if (currentPrize && !isProjectorMode) {
+      const allPrizeWinners = updatedWinners.filter(r => r.prizeId === currentPrize.id);
+      if (allPrizeWinners.length >= currentPrize.quota) {
+        const poolPrizes = currentPool === 'main' ? mainPrizes : bonusPrizes;
+        const nextIncomplete = poolPrizes.find(p => {
+          const count = updatedWinners.filter(r => r.prizeId === p.id).length;
+          return count < p.quota && p.id !== currentPrize.id;
+        });
+
+        if (nextIncomplete) {
+          setTimeout(() => {
+            setSelectedPrizeId(nextIncomplete.id);
+          }, 1500);
+        } else if (currentPool === 'main' && mainPrizes.length > 0 && mainPrizes.every(p => updatedWinners.filter(r => r.prizeId === p.id).length >= p.quota)) {
+          soundEffects.playFanfare();
+        }
+      }
+    }
   };
 
   // Candidates eligible for absentee replacement (補抽候選人名單，遵循獎池隔離棄權原則)
@@ -1471,6 +1518,16 @@ export default function App() {
               isNextRoundModalOpen={isNextRoundModalOpen}
               onOpenNextRoundModal={handleOpenNextRoundModal}
               onConfirmNextRound={handleConfirmNextRound}
+              isProjectorMode={isProjectorMode}
+              isShortcutsDisabled={
+                isProjectorMode ||
+                isImportModalOpen ||
+                isAdditionalModalOpen ||
+                isSecureResetModalOpen ||
+                isRedrawModalOpen ||
+                isNextRoundModalOpen ||
+                isLoadMockConfirmOpen
+              }
             />
 
             {/* Quick Stage Status Bar */}
@@ -1637,6 +1694,7 @@ export default function App() {
           currentDrawRound={currentDrawRound}
           acknowledgedRound={acknowledgedRound}
           isNextRoundModalOpen={isNextRoundModalOpen}
+          isRedrawModalOpen={isRedrawModalOpen}
           onOpenNextRoundModal={handleOpenNextRoundModal}
           onConfirmNextRound={handleConfirmNextRound}
         />
