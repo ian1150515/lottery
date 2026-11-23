@@ -18,7 +18,8 @@ import {
   Users,
   AlertTriangle,
   Layers,
-  UserX
+  UserX,
+  SlidersHorizontal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mascot } from './Mascot';
@@ -58,6 +59,9 @@ interface DrawStageProps {
   onOpenNextRoundModal?: (readonly?: boolean) => void;
   onConfirmNextRound?: () => void;
 
+  // Quick on-site prize adjust / split modal trigger
+  onOpenAdjustPrize?: () => void;
+
   // Background isolation when projector mode or overlay modals are active
   isProjectorMode?: boolean;
   isShortcutsDisabled?: boolean;
@@ -92,6 +96,7 @@ export const DrawStage: React.FC<DrawStageProps> = ({
   isNextRoundModalOpen = false,
   onOpenNextRoundModal,
   onConfirmNextRound,
+  onOpenAdjustPrize,
   isProjectorMode = false,
   isShortcutsDisabled = false,
 }) => {
@@ -148,7 +153,7 @@ export const DrawStage: React.FC<DrawStageProps> = ({
     }
   }, [remainingQuota, batchCount]);
 
-  // Synchronize batch count when switching prizes based on drawMethod
+  // Synchronize batch count when switching prizes or updating drawMethod/quota
   useEffect(() => {
     if (currentPrize) {
       if (currentPrize.drawMethod === 'batch') {
@@ -158,7 +163,7 @@ export const DrawStage: React.FC<DrawStageProps> = ({
         setBatchCount(1);
       }
     }
-  }, [currentPrize?.id]);
+  }, [currentPrize?.id, currentPrize?.drawMethod, currentPrize?.quota]);
 
   // Handle keyboard shortcut (Space to start automated roll)
   useEffect(() => {
@@ -361,6 +366,20 @@ export const DrawStage: React.FC<DrawStageProps> = ({
 
         {/* Big High-Visibility Metric Boxes */}
         <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-end">
+          {currentPrize && onOpenAdjustPrize && (
+            <button
+              id="btn-stage-adjust-prize"
+              type="button"
+              disabled={isDrawing}
+              onClick={onOpenAdjustPrize}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 text-xs sm:text-sm font-bold rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition-all cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+              title="現場臨時調整目前獎項的名額與獎品金額（拆獎）"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-amber-700" />
+              <span>調整名額 / 拆獎</span>
+            </button>
+          )}
+
           {onOpenAdditional && (
             <button
               onClick={onOpenAdditional}

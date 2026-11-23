@@ -21,7 +21,8 @@ import {
   Gift,
   Users,
   Pause,
-  HeartHandshake
+  HeartHandshake,
+  SlidersHorizontal
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Mascot } from './Mascot';
@@ -55,6 +56,8 @@ interface ProjectorViewProps {
   acknowledgedRound?: number;
   isNextRoundModalOpen?: boolean;
   isRedrawModalOpen?: boolean;
+  isAdjustPrizeModalOpen?: boolean;
+  onOpenAdjustPrize?: () => void;
   onOpenNextRoundModal?: (readonly?: boolean) => void;
   onConfirmNextRound?: () => void;
 }
@@ -82,6 +85,8 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
   acknowledgedRound = 1,
   isNextRoundModalOpen = false,
   isRedrawModalOpen = false,
+  isAdjustPrizeModalOpen = false,
+  onOpenAdjustPrize,
   onOpenNextRoundModal,
   onConfirmNextRound,
 }) => {
@@ -214,10 +219,17 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
     }
   }, [currentPrize?.id]);
 
+  // Synchronize drawMode if currentPrize.drawMethod is adjusted on-site
+  useEffect(() => {
+    if (currentPrize) {
+      setDrawMode(currentPrize.drawMethod === 'batch' ? 'all' : 'sequential');
+    }
+  }, [currentPrize?.id, currentPrize?.drawMethod]);
+
   // Keyboard shortcut listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isNextRoundModalOpen || isDonateModalOpen || isRedrawModalOpen) return;
+      if (isNextRoundModalOpen || isDonateModalOpen || isRedrawModalOpen || isAdjustPrizeModalOpen) return;
 
       const activeElement = document.activeElement;
       const isInputField =
@@ -270,7 +282,7 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDrawing, isCompleted, candidates, currentPrize, drawMode, drawDurationSeconds, remainingQuota, isNextRoundModalOpen, isDonateModalOpen, isRedrawModalOpen, isPrizeMenuOpen, currentIndex, prizes]);
+  }, [isDrawing, isCompleted, candidates, currentPrize, drawMode, drawDurationSeconds, remainingQuota, isNextRoundModalOpen, isDonateModalOpen, isRedrawModalOpen, isAdjustPrizeModalOpen, isPrizeMenuOpen, currentIndex, prizes]);
 
   const handleStopSequential = () => {
     isDrawingRef.current = false;
@@ -667,8 +679,22 @@ export const ProjectorView: React.FC<ProjectorViewProps> = ({
           )}
         </div>
 
-        {/* Right: Sound & Exit Projector */}
+        {/* Right: Quick Adjust, Sound & Exit Projector */}
         <div className="flex items-center gap-2">
+          {currentPrize && onOpenAdjustPrize && (
+            <button
+              id="btn-projector-adjust-prize"
+              type="button"
+              disabled={isDrawing}
+              onClick={onOpenAdjustPrize}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-2xl bg-white border border-amber-200 hover:bg-amber-50 text-xs sm:text-sm font-bold text-amber-900 transition-all shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title="現場臨時調整名額人數與獎品金額（拆獎）"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-amber-600" />
+              <span className="hidden md:inline">拆獎 / 改名額</span>
+            </button>
+          )}
+
           <button
             onClick={onToggleMute}
             className="p-2 sm:p-2.5 rounded-2xl bg-white border border-amber-200 text-slate-700 hover:text-rose-600 transition-colors cursor-pointer shadow-xs"

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Employee, Prize, WinningRecord, AbsentRecord, DonationRecord, CelebrationEffectType, AppSettings, RepeatWinningMode } from './types';
+import { Employee, Prize, WinningRecord, AbsentRecord, DonationRecord, CelebrationEffectType, AppSettings, RepeatWinningMode, DrawMethodType } from './types';
 import { MOCK_EMPLOYEES, MOCK_PRIZES } from './utils/mockData';
 import { exportWinnersToExcel, exportWinnersToCsv } from './utils/excelHelper';
 import { 
@@ -32,6 +32,7 @@ import { AbsenteeRedrawModal } from './components/AbsenteeRedrawModal';
 import { ConfirmLoadMockModal } from './components/ConfirmLoadMockModal';
 import { SecureResetModal, ResetModalMode } from './components/SecureResetModal';
 import { RoundTransitionModal } from './components/RoundTransitionModal';
+import { QuickAdjustPrizeModal } from './components/QuickAdjustPrizeModal';
 import { RefreshCw, Sparkles, Trophy, Settings, Award, Users, CheckCircle2, HeartHandshake, X } from 'lucide-react';
 
 export default function App() {
@@ -74,6 +75,7 @@ export default function App() {
   const [isAdditionalModalOpen, setIsAdditionalModalOpen] = useState<boolean>(false);
   const [isProjectorMode, setIsProjectorMode] = useState<boolean>(false);
   const [isLoadMockConfirmOpen, setIsLoadMockConfirmOpen] = useState<boolean>(false);
+  const [isAdjustPrizeModalOpen, setIsAdjustPrizeModalOpen] = useState<boolean>(false);
 
   // Secure Reset & Destruction Modal State (二次確認 Dialog)
   const [isSecureResetModalOpen, setIsSecureResetModalOpen] = useState<boolean>(false);
@@ -518,6 +520,54 @@ export default function App() {
     if (!targetPrize) return;
     const updatedPrize: Prize = { ...targetPrize, quota: newQuota };
     handleUpdatePrize(updatedPrize);
+  };
+
+  // Handler: On-site quick adjustment / prize split (現場調整名額與獎品金額/拆獎)
+  const handleQuickAdjustPrize = (
+    prizeId: string,
+    updates: {
+      quota: number;
+      content: string;
+      drawMethod: DrawMethodType;
+      syncExistingWinnersContent: boolean;
+    }
+  ) => {
+    const targetPrize = prizes.find(p => p.id === prizeId);
+    if (!targetPrize) return;
+
+    const updatedPrize: Prize = {
+      ...targetPrize,
+      quota: updates.quota,
+      content: updates.content,
+      drawMethod: updates.drawMethod,
+    };
+    const updatedPrizes = prizes.map(p => (p.id === prizeId ? updatedPrize : p));
+    setPrizes(updatedPrizes);
+
+    let nextWinningRecords = winningRecords;
+    if (updates.syncExistingWinnersContent) {
+      nextWinningRecords = winningRecords.map(r =>
+        r.prizeId === prizeId ? { ...r, prizeContent: updates.content } : r
+      );
+      winningRecordsRef.current = nextWinningRecords;
+      setWinningRecords(nextWinningRecords);
+    }
+
+    triggerAutoSaveSnapshot(
+      employees,
+      updatedPrizes,
+      nextWinningRecords,
+      absentRecords,
+      currentPool,
+      selectedPrizeId,
+      allowRepeatWinning
+    );
+
+    setToastMessage({
+      id: Date.now(),
+      text: `✨ 已調整【${targetPrize.name}】：名額 ${updates.quota} 位 ／ 獎品「${updates.content}」`,
+    });
+    soundEffects.playTick();
   };
 
   const handleToggleAllowRepeat = () => {
@@ -1518,6 +1568,7 @@ export default function App() {
               isNextRoundModalOpen={isNextRoundModalOpen}
               onOpenNextRoundModal={handleOpenNextRoundModal}
               onConfirmNextRound={handleConfirmNextRound}
+              onOpenAdjustPrize={() => setIsAdjustPrizeModalOpen(true)}
               isProjectorMode={isProjectorMode}
               isShortcutsDisabled={
                 isProjectorMode ||
@@ -1526,7 +1577,8 @@ export default function App() {
                 isSecureResetModalOpen ||
                 isRedrawModalOpen ||
                 isNextRoundModalOpen ||
-                isLoadMockConfirmOpen
+                isLoadMockConfirmOpen ||
+                isAdjustPrizeModalOpen
               }
             />
 
@@ -1695,6 +1747,8 @@ export default function App() {
           acknowledgedRound={acknowledgedRound}
           isNextRoundModalOpen={isNextRoundModalOpen}
           isRedrawModalOpen={isRedrawModalOpen}
+          isAdjustPrizeModalOpen={isAdjustPrizeModalOpen}
+          onOpenAdjustPrize={() => setIsAdjustPrizeModalOpen(true)}
           onOpenNextRoundModal={handleOpenNextRoundModal}
           onConfirmNextRound={handleConfirmNextRound}
         />
@@ -1726,6 +1780,15 @@ export default function App() {
         onAdjustPrizeQuota={currentPrize ? () => handleAdjustPrizeQuota(currentPrize.id, winningRecords.filter(w => w.prizeId === currentPrize.id).length) : undefined}
         onSwitchToBonus={() => handleSwitchPool('bonus')}
         isReadonly={isNextRoundModalReadonly}
+      />
+
+      {/* Modal: Quick Adjust Prize Quota & Content (現場調整名額與獎品金額/拆獎) */}
+      <QuickAdjustPrizeModal
+        isOpen={isAdjustPrizeModalOpen}
+        prize={currentPrize}
+        drawnCount={currentPrize ? winningRecords.filter(w => w.prizeId === currentPrize.id).length : 0}
+        onClose={() => setIsAdjustPrizeModalOpen(false)}
+        onSave={handleQuickAdjustPrize}
       />
     </div>
   );
